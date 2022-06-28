@@ -23,6 +23,7 @@ struct Trip {
     let passengerUid: String!
     var driverUid: String?
     var state: TripState!
+    var price: String!
     
     init(passengerUid: String, dictionary: [String: Any]) {
         self.passengerUid = passengerUid
@@ -45,6 +46,10 @@ struct Trip {
         
         if let state = dictionary["state"] as? Int  {
             self.state = TripState(rawValue: state)
+        }
+        
+        if let price = dictionary["price"] as? String {
+            self.price = price
         }
     }
 }

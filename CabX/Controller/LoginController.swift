@@ -94,8 +94,6 @@ class LoginController: UIViewController {
                 return
             }
             
-            print("DEBUG: Hi")
-            
 
             guard let controller = UIApplication.shared.keyWindow?.rootViewController as? HomeController
             else  { return }

@@ -8,6 +8,7 @@
 import UIKit
 import Firebase
 import GeoFire
+import CryptoKit
 
 class SignUpController: UIViewController {
     
@@ -120,15 +121,24 @@ class SignUpController: UIViewController {
                 print("DEBUG: Failed to register user with error \(error)")
                 return
             }
-            print("DEBUG: Succefull logged in with user id: \(Auth.auth().currentUser)")
+            print("DEBUG: Succefully logged in with user id: \(Auth.auth().currentUser)")
 
             guard let uid = result?.user.uid else {
                  return
             }
+            
+            let hash = SHA256.hash(data: Data(email.utf8)).compactMap{
+                String(format: "%02x", $0)
+            }.joined()
+            
+            let index = hash.index(hash.startIndex, offsetBy: 40)
+            let walletAddress = hash.prefix(upTo: index)
 
             let values = ["email":  email,
                           "fullname": fullName,
-                          "accounttype": accountTypeIndex] as [String: Any]
+                          "accounttype": accountTypeIndex,
+                          "walletAddress": walletAddress,
+                          "ethers": "100"] as [String: Any]
             
             
 

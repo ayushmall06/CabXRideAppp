@@ -18,11 +18,15 @@ struct User {
     var accountType: AccountType!
     var location: CLLocation?
     let uid: String
+    let ethers: String
+    let walletAddress: String
     
     init(uid: String, dictionary: [String: Any]) {
         self.uid = uid
         self.fullname = dictionary["fullname"] as? String ?? ""
         self.email = dictionary["email"] as? String ?? ""
+        self.ethers = dictionary["ethers"] as? String ?? ""
+        self.walletAddress = dictionary["walletAddress"] as? String ?? ""
         
         if let index = dictionary["accounttype"] as? Int {
             self.accountType = AccountType(rawValue: index)!

@@ -66,6 +66,15 @@ class RideActionView: UIView {
     weak var delegate: RideActionViewDelegate?
     var user: User?
     
+    var priceString: String?
+    
+    var setPrice: String? {
+        didSet {
+            priceString = setPrice
+        }
+    }
+    
+    
     var config = RideActionViewConfiguration() {
         didSet {
             configureUI(config: config)
@@ -129,6 +138,22 @@ class RideActionView: UIView {
         return button
     }()
     
+    
+    
+    private var paymentInfo: UILabel = {
+        let label = UILabel()
+        let price = NSMutableAttributedString(string: "Price : ", attributes: [NSAttributedString.Key.font : UIFont.boldSystemFont(ofSize: 22),
+            NSAttributedString.Key.foregroundColor: UIColor.black])
+        
+        let amount = NSMutableAttributedString(string: "0.12322111", attributes: [NSAttributedString.Key.font : UIFont.systemFont(ofSize: 20),NSAttributedString.Key.foregroundColor: UIColor.link])
+        
+        let symbol = NSMutableAttributedString(string: " ETH", attributes: [NSAttributedString.Key.font : UIFont.boldSystemFont(ofSize: 20),NSAttributedString.Key.foregroundColor: UIColor.systemRed])
+        price.append(amount)
+        price.append(symbol)
+        label.attributedText = price
+        return label
+    }()
+    
     // MARK: Lifecycle
     
     override init(frame: CGRect) {
@@ -161,6 +186,10 @@ class RideActionView: UIView {
         addSubview(separatorView)
         separatorView.anchor(top: cabXLabel.bottomAnchor, left: leftAnchor, right: rightAnchor, paddingTop: 8, height: 0.75)
         
+        addSubview(paymentInfo)
+        paymentInfo.anchor(top: separatorView.bottomAnchor, paddingTop: 10)
+        paymentInfo.centerX(inView: self)
+        
         addSubview(actionButton)
         actionButton.anchor(left: leftAnchor, bottom: safeAreaLayoutGuide.bottomAnchor, right:  rightAnchor, paddingLeft: 12, paddingBottom: 12, paddingRight: 12, height: 50)
     }
@@ -191,11 +220,36 @@ class RideActionView: UIView {
     private func configureUI(config : RideActionViewConfiguration) {
         switch config {
         case .requestRide:
+            guard let priceString = priceString else {
+                return
+            }
+
+            let price = NSMutableAttributedString(string: "Price : ", attributes: [NSAttributedString.Key.font : UIFont.boldSystemFont(ofSize: 22),
+                NSAttributedString.Key.foregroundColor: UIColor.black])
+            
+            let amount = NSMutableAttributedString(string: priceString, attributes: [NSAttributedString.Key.font : UIFont.systemFont(ofSize: 20),NSAttributedString.Key.foregroundColor: UIColor.link])
+            
+            let symbol = NSMutableAttributedString(string: " ETH", attributes: [NSAttributedString.Key.font : UIFont.boldSystemFont(ofSize: 20),NSAttributedString.Key.foregroundColor: UIColor.systemRed])
+            price.append(amount)
+            price.append(symbol)
+            paymentInfo.attributedText = price
             buttonAction = .requestRide
             actionButton.setTitle(buttonAction.description, for: .normal)
         case .tripAccepted:
             guard let user = user else { return }
+            guard let priceString = priceString else {
+                return
+            }
+
+            let price = NSMutableAttributedString(string: "Price : ", attributes: [NSAttributedString.Key.font : UIFont.boldSystemFont(ofSize: 22),
+                NSAttributedString.Key.foregroundColor: UIColor.black])
             
+            let amount = NSMutableAttributedString(string: priceString, attributes: [NSAttributedString.Key.font : UIFont.systemFont(ofSize: 20),NSAttributedString.Key.foregroundColor: UIColor.link])
+            
+            let symbol1 = NSMutableAttributedString(string: " ETH", attributes: [NSAttributedString.Key.font : UIFont.boldSystemFont(ofSize: 20),NSAttributedString.Key.foregroundColor: UIColor.systemRed])
+            price.append(amount)
+            price.append(symbol1)
+            paymentInfo.attributedText = price
             if user.accountType == .passenger {
                 titleLabel.text = "En Route to Passenger"
                 buttonAction = .getDirections

@@ -8,6 +8,7 @@
 import UIKit
 import Firebase
 import MapKit
+import BRYXBanner
 
 private let reuseIdentifier = "LocationCell"
 private let annotationIdentifier = "DriverAnnotation"
@@ -21,6 +22,11 @@ private enum ActionButtonConfiguration {
     }
 }
 
+private enum AnnotationType: String {
+    case pickup
+    case destination
+}
+
 class HomeController: UIViewController {
     
     // MARK: - Properties
@@ -32,6 +38,7 @@ class HomeController: UIViewController {
     private var searchResults = [MKPlacemark]()
     private var route: MKRoute?
     private let rideActionView = RideActionView()
+    private var priceString: String!
     
     private var actionButtonConfig = ActionButtonConfiguration()
     
@@ -41,12 +48,30 @@ class HomeController: UIViewController {
             locationInputView.user = user
             
             if user?.accountType == .passenger {
+                print("DEBUG: User is passenger")
                 fetchDrivers()
                 configureLocationInputActivationView()
-//                observeCurrentTrip()
+                observeCurrentTrip()
             } else {
                 print("DEBUG: User is Driver")
-//                observeTrips()
+                observeTrips()
+            }
+        }
+    }
+    
+    private var trip: Trip? {
+        didSet{
+            print("DEBUG: Show pickup passenger controller...")
+            guard let user = user else { return }
+            if user.accountType == .driver {
+                guard let trip = trip else { return }
+                let controller = PickupController(trip: trip)
+                controller.modalPresentationStyle = .fullScreen
+                controller.delegate = self
+                self.present(controller, animated: true, completion: nil)
+                
+            } else {
+                print("DEBUG: SHow ride action view for accepted trip")
             }
         }
     }
@@ -61,13 +86,13 @@ class HomeController: UIViewController {
     }()
     
     private final let locationInputHeight: CGFloat = 200
-    private final let rideActionViewHeight: CGFloat = 300
+    private final let rideActionViewHeight: CGFloat = 320
     
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        //signOut()
+//        signOut()
         checkIfUserIsLoggedIn()
         enableLocationServices()
         
@@ -94,7 +119,73 @@ class HomeController: UIViewController {
     
     // MARK: - API
     
+    func observeCurrentTrip() {
+        Service.shared.observeCurrentTrip { trip in
+            self.trip = trip
+            
+            guard let state = trip.state else { return }
+            guard let driverUid = trip.driverUid else { return }
+            
+            switch state {
+            case .requested:
+                break
+            case .accepted:
+                self.shouldPresentLoadingView(false)
+                
+                
+                var amount: Double = NSString(string: self.priceString).doubleValue * 0.3
+                var amountString = String(format: "%f", arguments: [amount])
+                print("DEBUG: Amount: \(amountString)")
+                
+                EthTransfer.shared.sendCryptoToContract(fromUid: trip.passengerUid, amount: amount)
+                self.removeAnnotationsandOverlays()
+                
+                
+                
+                let bannerString = "\(String(describing: amountString))ETH sent to Smart Contract"
+                
+                EthTransfer.shared.sendEthers(fromWalletAddress: "4a9f854bdf3d01a34ea220d6990e2147893e0fcf", toWalletAddress: "7fe406ddd93b49678cf2949d2aaa9c5776775454", amount: amountString)
+                
+                let banner = Banner(title: "Transaction Status", subtitle: bannerString, backgroundColor: UIColor(red:153.00/255.0, green:0.0/255.0, blue:0.0/255.0, alpha:1.000))
+                banner.dismissesOnTap = true
+                banner.show(duration: 10.0)
+                
+                self.zoomForActiveTrip(withDriverUid: trip.driverUid!)
+                
+                Service.shared.fetchUserData(uid: driverUid) { driver in
+                    self.animateRideActionView(shouldShow: true, config: .tripAccepted, user: driver)
+                }
+            case .driverArrived:
+                self.rideActionView.config = .driverArrived
+            case .inProgress:
+                self.rideActionView.config = .tripProgress
+                break
+            case .arrivedAtDestination:
+                self.rideActionView.config = .endTrip
+                
+                let amount = NSString(string: trip.price).doubleValue * 0.7
+                EthTransfer.shared.sendCryptoFromContract(toUid: trip.driverUid!, amount: amount)
+                let amountString = String(format: "%f", arguments: [amount])
+                let bannerString = "\(String(describing: amountString))ETH sent to Smart Contract"
+                EthTransfer.shared.sendEthers(fromWalletAddress: "4a9f854bdf3d01a34ea220d6990e2147893e0fcf",toWalletAddress: "7fe406ddd93b49678cf2949d2aaa9c57", amount: amountString)
+                let banner = Banner(title: "Transaction Status", subtitle: bannerString, backgroundColor: UIColor(red:153.00/255.0, green:0.0/255.0, blue:0.0/255.0, alpha:1.000))
+                banner.dismissesOnTap = true
+                banner.show(duration: 10.0)
+            case .completed:
+                
+                Service.shared.deleteTrip { err, ref in
+                    self.animateRideActionView(shouldShow: false)
+                    self.centerMapOnUserLocation()
+                    self.configureActionButton(config: .showMenu)
+                    self.presentAlertController(withTitle: "Trip Completed", message: "We hope you enjoyed your trip!")
+                    self.inputActivationView.alpha = 1
+                }
+            }
+        }
+    }
+    
     func checkIfUserIsLoggedIn() {
+        
         if Auth.auth().currentUser?.uid == nil {
             DispatchQueue.main.async {
                 let nav = UINavigationController(rootViewController: LoginController())
@@ -104,6 +195,7 @@ class HomeController: UIViewController {
             }
             
         } else {
+            
             configure()
         }
     }
@@ -116,8 +208,28 @@ class HomeController: UIViewController {
         }
     }
     
+    func startTrip() {
+        guard let trip = self.trip else { return }
+        Service.shared.updateTripState(trip: trip, state: .inProgress) { err, ref in
+            self.rideActionView.config = .tripProgress
+            self.removeAnnotationsandOverlays()
+            self.mapView.addAnnotationAndSelect(forCoordinate: trip.destinationCoordinates)
+            
+            let placemark = MKPlacemark(coordinate: trip.destinationCoordinates)
+            let mapItem = MKMapItem(placemark: placemark)
+            
+            self.setCustomRegion(withType: .destination, coordinates: trip.destinationCoordinates)
+            
+            self.generatePolyline(toDestination: mapItem)
+            
+            self.mapView.zoomToFit(annotations: self.mapView.annotations)
+        }
+    }
+    
     func fetchUserData() {
+        
         guard let currentUid = Auth.auth().currentUser?.uid else { return }
+        
         Service.shared.fetchUserData(uid: currentUid) { user in
             self.user = user
         }
@@ -126,17 +238,14 @@ class HomeController: UIViewController {
     func fetchDrivers() {
         guard let location =  locationManager?.location else { return }
         Service.shared.fetchDrivers(location: location) { driver in
-            print("DEBUG: Driver is \(driver.fullname)")
             guard let coordinate = driver.location?.coordinate else { return }
             let annotation = DriverAnnotation(uid: driver.uid, coordinate: coordinate)
-            print("DEBUG: Uid: \(driver.uid)")
             self.mapView.addAnnotation(annotation)
 
             var driverIsVisible: Bool {
                 return self.mapView.annotations.contains { annotation -> Bool in
                     guard let driverAnno = annotation as? DriverAnnotation else { return false }
                     if driverAnno.uid == driver.uid {
-                        print("DEBUG: Updated location")
                         driverAnno.updateAnnotationPosition(withCoordinate: coordinate)
                         self.zoomForActiveTrip(withDriverUid: driver.uid)
                         return true
@@ -151,10 +260,17 @@ class HomeController: UIViewController {
         }
     }
     
+    func observeTrips() {
+        Service.shared.observeTrips { trip in
+            self.trip = trip
+        }
+    }
+    
     
     // MARK: - Helper Functions
     
     func configure() {
+        
         configureUI()
         fetchUserData()
         
@@ -171,6 +287,8 @@ class HomeController: UIViewController {
         
         
         configureTableView()
+        
+
     }
     
     func configureLocationInputActivationView() {
@@ -355,11 +473,11 @@ private extension HomeController {
         mapView.setRegion(region, animated: true)
     }
     
-//    func setCustomRegion(withType type: AnnotationType, coordinates: CLLocationCoordinate2D) {
-//        let region = CLCircularRegion(center: coordinates, radius: 25, identifier: type.rawValue)
-//        locationManager?.startMonitoring(for: region)
-//
-//    }
+    func setCustomRegion(withType type: AnnotationType, coordinates: CLLocationCoordinate2D) {
+        let region = CLCircularRegion(center: coordinates, radius: 25, identifier: type.rawValue)
+        locationManager?.startMonitoring(for: region)
+
+    }
     
     func zoomForActiveTrip(withDriverUid uid: String) {
         var annotations = [MKAnnotation]()
@@ -386,6 +504,13 @@ private extension HomeController {
 
 extension HomeController: MKMapViewDelegate {
     
+    func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+        guard let user = self.user else { return }
+        guard user.accountType == .driver else { return }
+        guard let location = userLocation.location else { return }
+        Service.shared.updateDriverLocation(location: location)
+    }
+    
     func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
         if let annotation = annotation as? DriverAnnotation {
             let view = MKAnnotationView(annotation: annotation, reuseIdentifier: annotationIdentifier)
@@ -409,12 +534,61 @@ extension HomeController: MKMapViewDelegate {
 
 // MARK: - CLLocationManagerDelegate
 
-extension HomeController{
+extension HomeController: CLLocationManagerDelegate{
+    
+    func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
+        if(region.identifier == AnnotationType.pickup.rawValue) {
+            print("DEBUG: Did Start monitoring pick up region \(region)")
+        }
+        
+        if region.identifier == AnnotationType.destination.rawValue {
+            print("DEBUG: Did Start monitoring destination region \(region)")
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        guard let trip = self.trip else { return }
+        
+        if(region.identifier == AnnotationType.pickup.rawValue) {
+            Service.shared.updateTripState(trip: trip, state: .driverArrived) { err, ref in
+                self.rideActionView.config = .pickupPassenger
+                let amount = NSString(string: trip.price).doubleValue * 0.6
+                EthTransfer.shared.sendCryptoFromContract(toUid: trip.driverUid!, amount: amount)
+                let amountString = String(format: "%f", arguments: [amount])
+                EthTransfer.shared.sendEthers(fromWalletAddress: "7fe406ddd93b49678cf2949d2aaa9c57", toWalletAddress: "1751a55edc0fec4a21ff273a0c888e8eb1ed2ca0", amount: amountString)
+                let bannerString = "\(String(describing: amountString))ETH received from Smart Contract"
+                let banner = Banner(title: "Transaction Status", subtitle: bannerString, backgroundColor: UIColor(red:95/255.0, green:113/255.0, blue:97/255.0, alpha:1.000))
+                banner.dismissesOnTap = true
+                banner.show(duration: 10.0)
+            }
+        }
+        
+        if region.identifier == AnnotationType.destination.rawValue {
+            print("DEBUG: Did Start monitoring destination region \(region)")
+            Service.shared.updateTripState(trip: trip, state: .arrivedAtDestination) { err, ref in
+                print("DEBUG: Arrived at destination")
+                self.rideActionView.config = .endTrip
+                let amount = NSString(string: trip.price).doubleValue * 0.7
+                EthTransfer.shared.sendCryptoFromContract(toUid: trip.driverUid!, amount: amount)
+                let amountString = String(format: "%f", arguments: [amount])
+                EthTransfer.shared.sendEthers(fromWalletAddress: "7fe406ddd93b49678cf2949d2aaa9c57", toWalletAddress: "1751a55edc0fec4a21ff273a0c888e8eb1ed2ca0", amount: amountString)
+                let bannerString = "\(String(describing: amountString))ETH received from Smart Contract"
+                let banner = Banner(title: "Transaction Status", subtitle: bannerString, backgroundColor: UIColor(red:95/255.0, green:113/255.0, blue:97/255.0, alpha:1.000))
+                banner.dismissesOnTap = true
+                banner.show(duration: 10.0)
+                
+                
+            }
+        }
+        
+        
+        
+    }
     
     
     
     func enableLocationServices() {
-        
+        locationManager?.delegate = self
         switch CLLocationManager.authorizationStatus() {
         case .notDetermined:
             print("DEBUG: Not determined...")
@@ -504,6 +678,16 @@ extension HomeController: UITableViewDelegate, UITableViewDataSource {
         
 
         let destination = MKMapItem(placemark: selectedPlacemark)
+        
+        let pickup = locationManager?.location
+        
+        print("DEBUG: Hi")
+        let distance = (pickup?.distance(from: selectedPlacemark.location!))! / 1000
+        let price = (distance)/100000
+        
+        let priceString = String(format: "%0.6f", arguments: [price])
+        print("DEBUG: \(priceString)")
+        rideActionView.setPrice = priceString
 
         generatePolyline(toDestination: destination)
 
@@ -525,9 +709,19 @@ extension HomeController: RideActionViewDelegate {
         guard let pickupCoordinates = locationManager?.location?.coordinate else { return }
         guard let destinationCoordinates = view.destination?.coordinate else { return }
         
+        let pickup = locationManager?.location
+        let destination = view.destination?.location
+        print("DEBUG: Hi")
+        let distance = (pickup?.distance(from: destination!))! / 1000
+        let price = (distance)/100000
+        
+        let priceString = String(format: "%0.6f", arguments: [price])
+        print("DEBUG: \(priceString)")
+        self.priceString = priceString
+        
         shouldPresentLoadingView(true, message: "Finding you a ride..")
         
-        Service.shared.uploadTrip(pickupCoordinates, destinationCoordinates) { err, ref in
+        Service.shared.uploadTrip(pickupCoordinates, destinationCoordinates,priceString:  priceString) { err, ref in
             if let error = err {
                 print("DEBUG: Falied to upload trip with error \(error)")
             }
@@ -556,16 +750,16 @@ extension HomeController: RideActionViewDelegate {
     }
     
     func pickupPassenger() {
-        //startTrip()
+        startTrip()
     }
     
     func dropOffPassenger() {
-//        guard let trip = self.trip else { return }
-//        Service.shared.updateTripState(trip: trip, state: .completed) { err, ref in
-//            self.removeAnnotationsandOverlays()
-//            self.centerMapOnUserLocation()
-//            self.animateRideActionView(shouldShow: false)
-//        }
+        guard let trip = self.trip else { return }
+        Service.shared.updateTripState(trip: trip, state: .completed) { err, ref in
+            self.removeAnnotationsandOverlays()
+            self.centerMapOnUserLocation()
+            self.animateRideActionView(shouldShow: false)
+        }
     }
     
  
@@ -573,3 +767,50 @@ extension HomeController: RideActionViewDelegate {
 
 // MARK: - PickupControllerDelegate
 
+extension HomeController: PickupControllerDelegate {
+    func didAcceptTrip(_ trip: Trip) {
+        
+        self.trip = trip
+
+        self.mapView.addAnnotationAndSelect(forCoordinate: trip.pickupCoordinates)
+
+        setCustomRegion(withType: .pickup, coordinates: trip.pickupCoordinates)
+
+        let placemark = MKPlacemark(coordinate: trip.pickupCoordinates)
+        let mapItem = MKMapItem(placemark: placemark)
+        generatePolyline(toDestination: mapItem)
+
+        mapView.zoomToFit(annotations: mapView.annotations)
+
+        animateRideActionView(shouldShow: true)
+        let price = trip.price
+        
+        let amount = NSString(string: price!).doubleValue * 0.3
+        let amountString = String(format: "%f", arguments: [amount])
+        EthTransfer.shared.sendCryptoToContract(fromUid: trip.driverUid!, amount: amount)
+        
+        let bannerString = "\(String(describing: amountString))ETH sent to Smart Contract"
+        
+        EthTransfer.shared.sendEthers(fromWalletAddress: "4a9f854bdf3d01a34ea220d6990e2147893e0fcf", toWalletAddress: "7fe406ddd93b49678cf2949d2aaa9c5776775454", amount: amountString)
+        let banner = Banner(title: "Transaction Status", subtitle: bannerString, backgroundColor: UIColor(red:153/255.0, green:0/255.0, blue:0/255.0, alpha:1.000))
+        banner.dismissesOnTap = true
+        banner.show(duration: 10.0)
+        
+        
+        
+        rideActionView.priceString = trip.price
+        Service.shared.observeTripCancelled(trip: trip) {
+            self.removeAnnotationsandOverlays()
+            self.animateRideActionView(shouldShow: false)
+            self.centerMapOnUserLocation()
+            self.presentAlertController(withTitle: "Oops!",message: "The Passenger has cancelled the trip")
+        }
+
+        self.dismiss(animated: true) {
+            Service.shared.fetchUserData(uid: trip.passengerUid) { passenger in
+                self.animateRideActionView(shouldShow: true, config: .tripAccepted, user: passenger)
+            }
+
+        }
+    }
+}

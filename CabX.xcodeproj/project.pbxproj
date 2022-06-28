@@ -28,6 +28,11 @@
 		610B18082862284900D1A0F4 /* DriverAnnotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B18072862284900D1A0F4 /* DriverAnnotation.swift */; };
 		610B180A286232F500D1A0F4 /* RideActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B1809286232F500D1A0F4 /* RideActionView.swift */; };
 		610B180C2862392D00D1A0F4 /* Trip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B180B2862392D00D1A0F4 /* Trip.swift */; };
+		610B180E2862E9D300D1A0F4 /* PickupController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B180D2862E9D300D1A0F4 /* PickupController.swift */; };
+		610B18432864612F00D1A0F4 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B18422864612F00D1A0F4 /* Block.swift */; };
+		610B18452864616200D1A0F4 /* Blockchain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B18442864616200D1A0F4 /* Blockchain.swift */; };
+		610B1847286462F500D1A0F4 /* EthTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610B1846286462F500D1A0F4 /* EthTransfer.swift */; };
+		6196FCCE28682CEC0020758A /* RiderPayment.sol in Resources */ = {isa = PBXBuildFile; fileRef = 6196FCCD28682CEC0020758A /* RiderPayment.sol */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +60,11 @@
 		610B18072862284900D1A0F4 /* DriverAnnotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverAnnotation.swift; sourceTree = "<group>"; };
 		610B1809286232F500D1A0F4 /* RideActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideActionView.swift; sourceTree = "<group>"; };
 		610B180B2862392D00D1A0F4 /* Trip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trip.swift; sourceTree = "<group>"; };
+		610B180D2862E9D300D1A0F4 /* PickupController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickupController.swift; sourceTree = "<group>"; };
+		610B18422864612F00D1A0F4 /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
+		610B18442864616200D1A0F4 /* Blockchain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blockchain.swift; sourceTree = "<group>"; };
+		610B1846286462F500D1A0F4 /* EthTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EthTransfer.swift; sourceTree = "<group>"; };
+		6196FCCD28682CEC0020758A /* RiderPayment.sol */ = {isa = PBXFileReference; lastKnownFileType = text; path = RiderPayment.sol; sourceTree = "<group>"; };
 		D4BF1B878B748242AAEF0B24 /* Pods_CabX.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CabX.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -99,6 +109,7 @@
 		610B17D1285F3A3300D1A0F4 /* CabX */ = {
 			isa = PBXGroup;
 			children = (
+				610B1841286460FC00D1A0F4 /* Blockchain */,
 				610B17EC285F3A8500D1A0F4 /* Model */,
 				610B17EB285F3A8400D1A0F4 /* View */,
 				610B17EA285F3A8200D1A0F4 /* Controller */,
@@ -138,6 +149,7 @@
 				610B17ED285F3ADF00D1A0F4 /* LoginController.swift */,
 				610B17F3285F3DFF00D1A0F4 /* SignUpController.swift */,
 				610B17F7285F435500D1A0F4 /* HomeController.swift */,
+				610B180D2862E9D300D1A0F4 /* PickupController.swift */,
 			);
 			path = Controller;
 			sourceTree = "<group>";
@@ -162,6 +174,17 @@
 				610B180B2862392D00D1A0F4 /* Trip.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		610B1841286460FC00D1A0F4 /* Blockchain */ = {
+			isa = PBXGroup;
+			children = (
+				610B18422864612F00D1A0F4 /* Block.swift */,
+				610B18442864616200D1A0F4 /* Blockchain.swift */,
+				610B1846286462F500D1A0F4 /* EthTransfer.swift */,
+				6196FCCD28682CEC0020758A /* RiderPayment.sol */,
+			);
+			path = Blockchain;
 			sourceTree = "<group>";
 		};
 		8624996B2C3AD0C3E6D9A3AE /* Pods */ = {
@@ -233,6 +256,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6196FCCE28682CEC0020758A /* RiderPayment.sol in Resources */,
 				610B17DF285F3A3400D1A0F4 /* LaunchScreen.storyboard in Resources */,
 				610B17F6285F3FC700D1A0F4 /* GoogleService-Info.plist in Resources */,
 				610B17DC285F3A3400D1A0F4 /* Assets.xcassets in Resources */,
@@ -291,18 +315,22 @@
 			files = (
 				610B17D3285F3A3300D1A0F4 /* AppDelegate.swift in Sources */,
 				610B17F2285F3CC200D1A0F4 /* AuthButton.swift in Sources */,
+				610B1847286462F500D1A0F4 /* EthTransfer.swift in Sources */,
 				610B17F8285F435500D1A0F4 /* HomeController.swift in Sources */,
 				610B17FC2860C30D00D1A0F4 /* LocationInputView.swift in Sources */,
 				610B180C2862392D00D1A0F4 /* Trip.swift in Sources */,
+				610B180E2862E9D300D1A0F4 /* PickupController.swift in Sources */,
 				610B18082862284900D1A0F4 /* DriverAnnotation.swift in Sources */,
 				610B17EE285F3ADF00D1A0F4 /* LoginController.swift in Sources */,
 				610B17D5285F3A3300D1A0F4 /* SceneDelegate.swift in Sources */,
+				610B18452864616200D1A0F4 /* Blockchain.swift in Sources */,
 				610B17FE2861AF5B00D1A0F4 /* LocationCell.swift in Sources */,
 				610B1804286220B500D1A0F4 /* LocationHandler.swift in Sources */,
 				610B17F0285F3C4700D1A0F4 /* Extensions.swift in Sources */,
 				610B180A286232F500D1A0F4 /* RideActionView.swift in Sources */,
 				610B18022861B33100D1A0F4 /* User.swift in Sources */,
 				610B18002861B29900D1A0F4 /* Service.swift in Sources */,
+				610B18432864612F00D1A0F4 /* Block.swift in Sources */,
 				610B17FA2860BCF100D1A0F4 /* LocationInputActivationView.swift in Sources */,
 				610B17F4285F3DFF00D1A0F4 /* SignUpController.swift in Sources */,
 			);
